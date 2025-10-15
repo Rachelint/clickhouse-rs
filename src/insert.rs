@@ -37,17 +37,25 @@ pub struct RowsBuilder {
 impl RowsBuilder {
     #[cfg(feature = "lz4")]
     pub fn new(compression: Compression) -> Self {
+        Self::new_from_parts(BytesMut::with_capacity(BUFFER_SIZE), compression)
+    }
+
+    #[cfg(not(feature = "lz4"))]
+    pub fn new() -> Self {
+        Self::new_from_parts(BytesMut::with_capacity(BUFFER_SIZE))
+    }
+
+    #[cfg(feature = "lz4")]
+    pub fn new_from_parts(buffer: BytesMut, compression: Compression) -> Self {
         Self {
-            buffer: BytesMut::with_capacity(BUFFER_SIZE),
+            buffer,
             compression,
         }
     }
 
     #[cfg(not(feature = "lz4"))]
-    pub fn new() -> Self {
-        Self {
-            buffer: BytesMut::with_capacity(BUFFER_SIZE),
-        }
+    pub fn new_from_parts(buffer: BytesMut) -> Self {
+        Self { buffer }
     }
 
     pub fn add_row<T: Serialize>(&mut self, row: &T) -> Result<usize> {
