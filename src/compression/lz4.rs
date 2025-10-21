@@ -159,13 +159,14 @@ fn calc_checksum(buffer: &[u8]) -> u128 {
 pub(crate) fn compress(uncompressed: &[u8]) -> Result<Bytes> {
     let max_compressed_size = block::get_maximum_output_size(uncompressed.len());
 
-    let mut buffer = BytesMut::new();
+    let mut buffer = Vec::new();
     buffer.resize(LZ4_META_SIZE + max_compressed_size, 0);
 
     let compressed_data_size = block::compress_into(uncompressed, &mut buffer[LZ4_META_SIZE..])
         .map_err(|err| Error::Compression(err.into()))?;
 
     buffer.truncate(LZ4_META_SIZE + compressed_data_size);
+    buffer.shrink_to_fit();
 
     let mut meta = Lz4Meta {
         checksum: 0, // will be calculated below.
@@ -177,7 +178,7 @@ pub(crate) fn compress(uncompressed: &[u8]) -> Result<Bytes> {
     meta.checksum = calc_checksum(&buffer[LZ4_CHECKSUM_SIZE..]);
     meta.write_checksum(&mut buffer[..]);
 
-    Ok(buffer.freeze())
+    Ok(Bytes::from(buffer))
 }
 
 #[tokio::test]
