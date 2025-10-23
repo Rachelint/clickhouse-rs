@@ -100,14 +100,13 @@ impl RowsBuilder {
 }
 
 /// inserted rows sender
-pub struct RowsSender<T> {
+pub struct RowsSender {
     state: RowsSenderState,
     send_timeout: Option<Duration>,
     end_timeout: Option<Duration>,
     // Use boxed `Sleep` to reuse a timer entry, it improves performance.
     // Also, `tokio::time::timeout()` significantly increases a future's size.
     sleep: Pin<Box<Sleep>>,
-    _marker: PhantomData<fn() -> T>, // TODO: test contravariance.
 }
 
 // It should be a regular function, but it decreases performance.
@@ -124,12 +123,9 @@ macro_rules! timeout {
     }};
 }
 
-impl<T> RowsSender<T> {
-    pub fn new(client: &Client, table: &str) -> Self
-    where
-        T: Row,
-    {
-        let fields = row::join_column_names::<T>()
+impl RowsSender {
+    pub fn new(client: &Client, table: &str, fields: &[&str]) -> Self {
+        let fields = row::join_column_names(fields)
             .expect("the row type must be a struct or a wrapper around it");
 
         // TODO: what about escaping a table name?
@@ -144,7 +140,6 @@ impl<T> RowsSender<T> {
             send_timeout: None,
             end_timeout: None,
             sleep: Box::pin(tokio::time::sleep(Duration::new(0, 0))),
-            _marker: PhantomData,
         }
     }
 
@@ -311,7 +306,7 @@ impl<T> RowsSender<T> {
     }
 }
 
-impl<T> Drop for RowsSender<T> {
+impl Drop for RowsSender {
     fn drop(&mut self) {
         self.abort();
     }
@@ -385,7 +380,8 @@ impl RowsSenderState {
 #[must_use]
 pub struct Insert<T> {
     builder: RowsBuilder,
-    sender: RowsSender<T>,
+    sender: RowsSender,
+    _marker: PhantomData<fn() -> T>, // TODO: test contravariance.
 }
 
 impl<T> Insert<T> {
@@ -394,14 +390,18 @@ impl<T> Insert<T> {
     where
         T: Row,
     {
-        let sender = RowsSender::new(client, table);
+        let sender = RowsSender::new(client, table, T::COLUMN_NAMES);
 
         #[cfg(feature = "lz4")]
         let builder = RowsBuilder::new(client.compression);
         #[cfg(not(feature = "lz4"))]
         let builder = RowsBuilder::new();
 
-        Ok(Self { sender, builder })
+        Ok(Self {
+            sender,
+            builder,
+            _marker: PhantomData,
+        })
     }
 
     /// Sets timeouts for different operations.

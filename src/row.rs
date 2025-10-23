@@ -54,12 +54,12 @@ impl<T> Row for Vec<T> {
 }
 
 /// Collects all field names in depth and joins them with comma.
-pub(crate) fn join_column_names<R: Row>() -> Option<String> {
-    if R::COLUMN_NAMES.is_empty() {
+pub(crate) fn join_column_names(fields: &[&str]) -> Option<String> {
+    if fields.is_empty() {
         return None;
     }
 
-    let out = R::COLUMN_NAMES
+    let out = fields
         .iter()
         .enumerate()
         .fold(String::new(), |mut res, (idx, name)| {

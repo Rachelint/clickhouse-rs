@@ -104,7 +104,7 @@ impl SqlBuilder {
             return;
         };
 
-        if let Some(fields) = row::join_column_names::<T>() {
+        if let Some(fields) = row::join_column_names(T::COLUMN_NAMES) {
             for part in parts.iter_mut().filter(|p| matches!(p, Part::Fields)) {
                 *part = Part::Text(fields.clone());
             }

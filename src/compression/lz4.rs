@@ -3,7 +3,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes};
 use cityhash_rs::cityhash_102_128;
 use futures::{ready, stream::Stream};
 use lz4_flex::block;
@@ -158,10 +158,7 @@ fn calc_checksum(buffer: &[u8]) -> u128 {
 
 pub(crate) fn compress(uncompressed: &[u8]) -> Result<Bytes> {
     let max_compressed_size = block::get_maximum_output_size(uncompressed.len());
-
-    let mut buffer = Vec::new();
-    buffer.resize(LZ4_META_SIZE + max_compressed_size, 0);
-
+    let mut buffer = vec![0; LZ4_META_SIZE + max_compressed_size];
     let compressed_data_size = block::compress_into(uncompressed, &mut buffer[LZ4_META_SIZE..])
         .map_err(|err| Error::Compression(err.into()))?;
 
